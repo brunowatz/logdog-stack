@@ -1,0 +1,287 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
+import { Search, Filter, Eye, MessageSquare, ArrowUpDown } from 'lucide-react';
+import { getClients } from '@/lib/data-service';
+import { formatCurrency, formatDate, daysSinceDate } from '@/lib/utils';
+import StatusBadge from '@/components/StatusBadge';
+import { ClientStatus } from '@/types';
+
+export default function ClientsPage() {
+  const [allClients, setAllClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'last_purchase' | 'total_spent'>('last_purchase');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  useEffect(() => {
+    async function loadData() {
+      const data = await getClients();
+      setAllClients(data);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const filteredClients = useMemo(() => {
+    if (loading) return [];
+    let result = [...allClients];
+
+    // Filtro de busca
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.company.toLowerCase().includes(q) ||
+        c.city.toLowerCase().includes(q)
+      );
+    }
+
+    // Filtro de status
+    if (statusFilter !== 'all') {
+      result = result.filter(c => c.status === statusFilter);
+    }
+
+    // Ordenação
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'name') {
+        cmp = a.name.localeCompare(b.name);
+      } else if (sortBy === 'last_purchase') {
+        cmp = new Date(a.last_purchase).getTime() - new Date(b.last_purchase).getTime();
+      } else if (sortBy === 'total_spent') {
+        cmp = a.total_spent - b.total_spent;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [allClients, search, statusFilter, sortBy, sortDir]);
+
+  function toggleSort(field: 'name' | 'last_purchase' | 'total_spent') {
+    if (sortBy === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  }
+
+  const statusCounts = useMemo(() => ({
+    all: allClients.length,
+    active: allClients.filter(c => c.status === 'active').length,
+    cooling: allClients.filter(c => c.status === 'cooling').length,
+    inactive: allClients.filter(c => c.status === 'inactive').length,
+  }), [allClients]);
+
+  if (loading) {
+    return <div className="animate-in" style={{ padding: '40px', textAlign: 'center' }}>Carregando lista de clientes...</div>;
+  }
+
+  return (
+    <div className="animate-in">
+      {/* Header */}
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1>Clientes</h1>
+          <p>{allClients.length} pet shops cadastrados</p>
+        </div>
+      </div>
+
+      {/* Filters bar */}
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}>
+        {/* Search */}
+        <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
+          <Search />
+          <input
+            type="text"
+            placeholder="Buscar por nome, empresa ou cidade..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Status tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          background: 'var(--bg-card)',
+          borderRadius: '12px',
+          padding: '4px',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          {(['all', 'active', 'cooling', 'inactive'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: statusFilter === s ? '600' : '500',
+                background: statusFilter === s ? 'rgba(99,102,241,0.15)' : 'transparent',
+                color: statusFilter === s ? 'var(--brand-primary-light)' : 'var(--text-muted)',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {s === 'all' && '📋 Todos'}
+              {s === 'active' && '🟢 Ativos'}
+              {s === 'cooling' && '🟡 Esfriando'}
+              {s === 'inactive' && '🔴 Inativos'}
+              <span style={{
+                fontSize: '11px',
+                background: statusFilter === s ? 'var(--brand-primary)' : 'var(--bg-surface)',
+                color: statusFilter === s ? 'white' : 'var(--text-muted)',
+                padding: '1px 7px',
+                borderRadius: '8px',
+                fontWeight: '600',
+              }}>
+                {statusCounts[s]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '280px' }}>
+                  <button
+                    onClick={() => toggleSort('name')}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'inherit', font: 'inherit', display: 'flex',
+                      alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    Cliente / Empresa
+                    <ArrowUpDown size={12} />
+                  </button>
+                </th>
+                <th>Cidade</th>
+                <th>
+                  <button
+                    onClick={() => toggleSort('last_purchase')}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'inherit', font: 'inherit', display: 'flex',
+                      alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    Última Compra
+                    <ArrowUpDown size={12} />
+                  </button>
+                </th>
+                <th>Status</th>
+                <th>
+                  <button
+                    onClick={() => toggleSort('total_spent')}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'inherit', font: 'inherit', display: 'flex',
+                      alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    Total Gasto
+                    <ArrowUpDown size={12} />
+                  </button>
+                </th>
+                <th style={{ textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClients.map((client) => (
+                <tr key={client.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        className="client-avatar"
+                        style={{
+                          background: client.status === 'inactive'
+                            ? 'rgba(239,68,68,0.15)'
+                            : client.status === 'cooling'
+                            ? 'rgba(234,179,8,0.15)'
+                            : 'rgba(34,197,94,0.15)',
+                          color: client.status === 'inactive'
+                            ? '#f87171'
+                            : client.status === 'cooling'
+                            ? '#facc15'
+                            : '#4ade80',
+                          width: '38px',
+                          height: '38px',
+                          fontSize: '14px',
+                        }}
+                      >
+                        {client.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>{client.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{client.company}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{ color: 'var(--text-secondary)' }}>{client.city}/{client.state}</span>
+                  </td>
+                  <td>
+                    <div>
+                      <span style={{ fontWeight: '500' }}>{formatDate(client.last_purchase)}</span>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {daysSinceDate(client.last_purchase)} dias atrás
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <StatusBadge status={client.status} />
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: '600', color: 'var(--brand-primary-light)' }}>
+                      {formatCurrency(client.total_spent)}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <Link href={`/clients/${client.id}`} className="btn btn-secondary btn-sm">
+                        <Eye size={14} />
+                        Ver
+                      </Link>
+                      <Link href={`/clients/${client.id}`} className="btn btn-primary btn-sm">
+                        <MessageSquare size={14} />
+                        Mensagem
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredClients.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-icon">🔍</div>
+            <h3>Nenhum cliente encontrado</h3>
+            <p>Tente ajustar os filtros de busca</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
