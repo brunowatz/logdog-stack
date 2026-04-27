@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Send,
   ChevronRight,
@@ -88,32 +88,31 @@ export default function SendPage() {
     setSelectedClients(new Set());
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!selectedCampaign || selectedClients.size === 0) return;
 
     setIsSending(true);
-
-    // Simular envio sequencial
     const clientIds = Array.from(selectedClients);
     let count = 0;
 
-    const interval = setInterval(() => {
-      if (count >= clientIds.length) {
-        clearInterval(interval);
-        setIsSending(false);
-        setSentCount(clientIds.length);
-        setStep(4);
-        return;
-      }
-
-      const client = allClients.find(c => c.id === clientIds[count]);
+    for (const clientId of clientIds) {
+      const client = allClients.find(c => c.id === clientId);
       if (client && selectedCampaign) {
-        const message = personalizeMessage(selectedCampaign.template, client);
-        sendMessage(client.id, message, selectedCampaign.id);
+        try {
+          const message = personalizeMessage(selectedCampaign.template, client);
+          await sendMessage(client.id, message, selectedCampaign.id);
+        } catch (err) {
+          console.error(`Erro ao enviar para ${client.name}:`, err);
+        }
       }
       count++;
       setSentCount(count);
-    }, 300);
+      // Pequeno delay para efeito visual e não sobrecarregar
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    setIsSending(false);
+    setStep(4);
   }
 
   const getPreviewMessage = (client: Client) => {
@@ -215,7 +214,7 @@ export default function SendPage() {
             📣 Selecione uma campanha
           </h2>
           <div className="grid-2">
-            {campaigns.map(campaign => (
+            {campaigns.map((campaign: any) => (
               <div
                 key={campaign.id}
                 className="card"
@@ -254,7 +253,7 @@ export default function SendPage() {
                       {campaign.description}
                     </p>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      {campaign.target_status.map(s => (
+                      {campaign.target_status.map((s: any) => (
                         <span key={s} className={`status-badge ${s}`} style={{ fontSize: '10px' }}>
                           <span className="dot" />
                           {getStatusLabel(s)}
@@ -335,7 +334,7 @@ export default function SendPage() {
                 </tr>
               </thead>
               <tbody>
-                {suggestedClients.map(client => (
+                {suggestedClients.map((client: any) => (
                   <tr
                     key={client.id}
                     style={{
@@ -431,7 +430,7 @@ export default function SendPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
             {allClients
               .filter(c => selectedClients.has(c.id))
-              .map(client => (
+              .map((client: any) => (
                 <div key={client.id} className="card" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

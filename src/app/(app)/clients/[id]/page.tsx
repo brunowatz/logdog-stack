@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -83,12 +83,16 @@ export default function ClientDetailPage() {
     );
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!messageText.trim()) return;
-    sendMessage(client.id, messageText);
-    setShowMessageModal(false);
-    setMessageText('');
-    setToast({ message: `Mensagem enviada para ${client.name}!`, type: 'success' });
+    try {
+      await sendMessage(client.id, messageText);
+      setShowMessageModal(false);
+      setMessageText('');
+      setToast({ message: `Mensagem enviada para ${client.name}!`, type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Erro ao enviar mensagem', type: 'error' });
+    }
   };
 
   const handleUseCampaign = (template: string) => {
@@ -290,7 +294,7 @@ export default function ClientDetailPage() {
 
                     {/* Items */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {order.items.map((item) => (
+                      {order.items.map((item: any) => (
                         <div
                           key={item.id}
                           style={{

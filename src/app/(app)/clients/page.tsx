@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Filter, Eye, MessageSquare, ArrowUpDown } from 'lucide-react';
 import { getClients } from '@/lib/data-service';
@@ -207,7 +207,7 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredClients.map((client) => (
+              {filteredClients.map((client: any) => (
                 <tr key={client.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

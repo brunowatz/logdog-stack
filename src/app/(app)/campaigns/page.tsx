@@ -28,11 +28,25 @@ const campaignIcons: Record<CampaignType, string> = {
   launch: '🚀',
 };
 
+import { useEffect } from 'react';
+
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState(() => getCampaigns());
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    const data = await getCampaigns();
+    setCampaigns(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Form state
   const [formTitle, setFormTitle] = useState('');
@@ -65,37 +79,41 @@ export default function CampaignsPage() {
     setShowModal(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!formTitle || !formTemplate) {
       setToast({ message: 'Preencha título e template da mensagem', type: 'error' });
       return;
     }
 
-    if (editingCampaign) {
-      updateCampaign(editingCampaign.id, {
-        title: formTitle,
-        type: formType,
-        description: formDescription,
-        template: formTemplate,
-        target_status: formTargetStatus as Campaign['target_status'],
-      });
-      setToast({ message: 'Campanha atualizada com sucesso!', type: 'success' });
-    } else {
-      createCampaign({
-        title: formTitle,
-        type: formType,
-        description: formDescription,
-        template: formTemplate,
-        image_url: '',
-        target_status: formTargetStatus as Campaign['target_status'],
-        is_active: true,
-      });
-      setToast({ message: 'Campanha criada com sucesso!', type: 'success' });
-    }
+    try {
+      if (editingCampaign) {
+        await updateCampaign(editingCampaign.id, {
+          title: formTitle,
+          type: formType,
+          description: formDescription,
+          template: formTemplate,
+          target_status: formTargetStatus as Campaign['target_status'],
+        });
+        setToast({ message: 'Campanha atualizada com sucesso!', type: 'success' });
+      } else {
+        await createCampaign({
+          title: formTitle,
+          type: formType,
+          description: formDescription,
+          template: formTemplate,
+          image_url: '',
+          target_status: formTargetStatus as Campaign['target_status'],
+          is_active: true,
+        });
+        setToast({ message: 'Campanha criada com sucesso!', type: 'success' });
+      }
 
-    setCampaigns([...getCampaigns()]);
-    setShowModal(false);
-    resetForm();
+      await loadData();
+      setShowModal(false);
+      resetForm();
+    } catch (err) {
+      setToast({ message: 'Erro ao salvar campanha', type: 'error' });
+    }
   }
 
   function toggleTargetStatus(status: string) {
@@ -104,6 +122,10 @@ export default function CampaignsPage() {
         ? prev.filter(s => s !== status)
         : [...prev, status]
     );
+  }
+
+  if (loading) {
+    return <div className="animate-in" style={{ padding: '40px', textAlign: 'center' }}>Carregando campanhas...</div>;
   }
 
   return (
@@ -195,7 +217,7 @@ export default function CampaignsPage() {
 
               {/* Target audience */}
               <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                {campaign.target_status.map(status => (
+                {campaign.target_status.map((status: any) => (
                   <span
                     key={status}
                     className={`status-badge ${status}`}

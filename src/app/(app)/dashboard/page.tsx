@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -94,7 +94,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="client-list">
-            {stats.contact_today.map((client, i) => (
+            {stats.contact_today.map((client: any, i: number) => (
               <Link
                 key={client.id}
                 href={`/clients/${client.id}`}
@@ -158,7 +158,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="client-list">
-            {stats.opportunities.map((opp, i) => (
+            {stats.opportunities.map((opp: any, i: number) => (
               <Link
                 key={opp.client.id}
                 href={`/clients/${opp.client.id}`}

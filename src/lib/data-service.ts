@@ -25,7 +25,7 @@ export async function getClients(): Promise<Client[]> {
       return [];
     }
 
-    return data.map(c => ({
+    return data.map((c: any) => ({
       ...c,
       status: c.computed_status as any, // Usa a view do SQL
     }));
@@ -100,6 +100,35 @@ export async function getCampaigns(): Promise<Campaign[]> {
   return mockCampaigns;
 }
 
+export async function createCampaign(campaign: Omit<Campaign, 'id' | 'created_at'>): Promise<Campaign> {
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase.from('campaigns').insert(campaign).select().single();
+    if (error) throw error;
+    return data;
+  }
+  
+  const newCampaign: Campaign = {
+    ...campaign,
+    id: `camp${Date.now()}`,
+    created_at: new Date().toISOString().split('T')[0],
+  };
+  mockCampaigns.push(newCampaign);
+  return newCampaign;
+}
+
+export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase.from('campaigns').update(updates).eq('id', id).select().single();
+    if (error) return undefined;
+    return data;
+  }
+
+  const index = mockCampaigns.findIndex((c: any) => c.id === id);
+  if (index === -1) return undefined;
+  mockCampaigns[index] = { ...mockCampaigns[index], ...updates };
+  return mockCampaigns[index];
+}
+
 export async function sendMessage(clientId: string, content: string, campaignId?: string): Promise<Message> {
   const client = await getClientById(clientId);
   
@@ -143,7 +172,7 @@ export async function getSuggestionsForClient(clientId: string): Promise<Suggest
     });
   });
 
-  const lastOrder = [...orders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const lastOrder = [...orders].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
   
   for (const item of lastOrder.items) {
     const product = await getProductById(item.product_id);
@@ -178,7 +207,7 @@ export async function getSuggestionsForClient(clientId: string): Promise<Suggest
     const complementary = complementaryMap[cat] || [];
     complementary.forEach(compCat => {
       if (!purchasedCategories.has(compCat)) {
-        const product = allProducts.find(p => p.category === compCat && !purchasedProductIds.has(p.id));
+        const product = allProducts.find((p: any) => p.category === compCat && !purchasedProductIds.has(p.id));
         if (product) {
           suggestions.push({
             type: 'complementary',
